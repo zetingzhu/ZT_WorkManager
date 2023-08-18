@@ -11,7 +11,6 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.example.zzt.zworkmanager.MyApplication
 import com.example.zzt.zworkmanager.R
-import com.zzt.utilcode.util.LogUtils
 import com.zzt.utilcode.util.NotificationUtils
 import com.zzt.utilcode.util.NotificationUtils.ChannelConfig
 import com.zzt.utilcode.util.Utils
@@ -23,61 +22,49 @@ import kotlin.random.Random
  * @date: 2023/8/15
  * 工作单元
  */
-class CWork : Worker {
-    val TAG = CWork::class.java.simpleName
+class FWork : Worker {
+    val TAG = FWork::class.java.simpleName
     var NOTIFICATION_ID = 9999
     var maxCount = 10
 
     constructor(context: Context, workerParams: WorkerParameters) : super(context, workerParams) {
-        LogUtils.vTag(TAG, "work 工作进度 创建 tags:$tags")
-    }
-
-    override fun getForegroundInfo(): ForegroundInfo {
-        val notification = NotificationUtils.getNotification(
-            ChannelConfig.DEFAULT_CHANNEL_CONFIG
-        ) { param ->
-            param.setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("title tags:$tags")
-                .setContentText("content text: $NOTIFICATION_ID")
-                .setAutoCancel(true)
-        }
-
-        return ForegroundInfo(NOTIFICATION_ID, notification)
+        Log.v(TAG, "work 工作进度 创建 tags:$tags")
     }
 
     override fun doWork(): Result {
-        val randoms = (0..10).random()
-        maxCount += randoms
 
-        LogUtils.vTag(TAG, "work 工作进度 开始工作 tags:$tags  maxCount${maxCount}")
+        Log.v(TAG, "work 工作进度 开始工作 tags:$tags  maxCount${maxCount}")
 
-        // 工作
-        timeWork()
 
         // 返回工作结果
-        return Result.success()
+        return timeWork()
     }
 
 
-    fun timeWork() {
+    fun timeWork(): Result {
         var count = 0;
         while (true) {
             count++
             if (count >= maxCount) {
                 break
             }
-            LogUtils.vTag(
+            Log.v(
                 TAG, "work 工作进度 :" + count +
                         "\n  maxCount:${maxCount} tags:$tags " +
                         "ThreadPool:${WorkManager.getInstance(MyApplication.instance.applicationContext).configuration.executor}"
             )
-
+            if (count == 5) {
+                return Result.retry()
+            }
             try {
                 TimeUnit.SECONDS.sleep(1)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
+
+        Log.v(TAG, "work 工作进度 Result success ")
+        return Result.success()
     }
 
 }

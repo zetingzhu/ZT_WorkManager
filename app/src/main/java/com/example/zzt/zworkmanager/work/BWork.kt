@@ -36,7 +36,7 @@ class BWork : Worker {
             ChannelConfig.DEFAULT_CHANNEL_CONFIG
         ) { param ->
             param.setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("title")
+                .setContentTitle("title tags:$tags")
                 .setContentText("content text: $NOTIFICATION_ID")
                 .setAutoCancel(true)
         }
