@@ -1,22 +1,26 @@
 package com.example.zzt.zworkmanager.work
 
-import android.app.PendingIntent
 import android.content.Context
 import android.util.Log
-import android.view.WindowManager
-import androidx.core.app.NotificationCompat
 import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.example.zzt.zworkmanager.MyApplication
 import com.example.zzt.zworkmanager.R
-import com.zzt.utilcode.util.LogUtils
+import com.zzt.utilcode.util.FileIOUtils
+import com.zzt.utilcode.util.FileUtils
 import com.zzt.utilcode.util.NotificationUtils
 import com.zzt.utilcode.util.NotificationUtils.ChannelConfig
-import com.zzt.utilcode.util.Utils
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileWriter
+import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import kotlin.random.Random
 
 /**
  * @author: zeting
@@ -29,7 +33,7 @@ class CWork : Worker {
     var maxCount = 10
 
     constructor(context: Context, workerParams: WorkerParameters) : super(context, workerParams) {
-        LogUtils.vTag(TAG, "work 工作进度 创建 tags:$tags")
+        writeLogToSdCard(TAG, "work 工作进度 创建 tags:$tags")
     }
 
     override fun getForegroundInfo(): ForegroundInfo {
@@ -49,7 +53,7 @@ class CWork : Worker {
         val randoms = (0..10).random()
         maxCount += randoms
 
-        LogUtils.vTag(TAG, "work 工作进度 开始工作 tags:$tags  maxCount${maxCount}")
+        writeLogToSdCard(TAG, "work 工作进度 开始工作 tags:$tags  maxCount${maxCount}")
 
         // 工作
         timeWork()
@@ -66,7 +70,7 @@ class CWork : Worker {
             if (count >= maxCount) {
                 break
             }
-            LogUtils.vTag(
+            writeLogToSdCard(
                 TAG, "work 工作进度 :" + count +
                         "\n  maxCount:${maxCount} tags:$tags " +
                         "ThreadPool:${WorkManager.getInstance(MyApplication.instance.applicationContext).configuration.executor}"
@@ -79,5 +83,95 @@ class CWork : Worker {
             }
         }
     }
+
+    private val EXECUTOR = Executors.newSingleThreadExecutor()
+
+
+    fun createOrExistsFile(file: File?): Boolean {
+        if (file == null) return false
+        if (file.exists()) return file.isFile
+        if (!FileUtils.createOrExistsDir(file.parentFile)) {
+            return false
+        }
+        return try {
+            file.createNewFile()
+        } catch (e: IOException) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    fun writeFileFromString(
+        file: File?,
+        content: String?,
+        append: Boolean
+    ): Boolean {
+        if (file == null || content == null) return false
+        if (!createOrExistsFile(file)) {
+            Log.e("FileIOUtils", "create file <$file> failed.")
+            return false
+        }
+        var bw: BufferedWriter? = null
+        return try {
+            bw = BufferedWriter(FileWriter(file, append))
+            bw.write(content)
+            true
+        } catch (e: IOException) {
+            e.printStackTrace()
+            false
+        } finally {
+            try {
+                bw?.close()
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun writeLogToSdCard(tag: String, contents: String) {
+        EXECUTOR.execute {
+            val d = Date()
+            val format = simpleDateFormat?.format(d)
+            val date = format?.substring(0, 10)
+            val currentLogFilePath = getCurrentLogFilePath(d)
+            if (!createOrExistsFile(currentLogFilePath, date ?: "")) {
+                return@execute
+            }
+            writeFileFromString(File(currentLogFilePath), "$format >> $contents", true);
+        }
+    }
+
+    private fun createOrExistsFile(filePath: String, date: String): Boolean {
+        val file = File(filePath)
+        if (file.exists()) return file.isFile
+        return if (!FileUtils.createOrExistsDir(file.parentFile)) false else try {
+            val isCreate = file.createNewFile()
+            if (isCreate) {
+                FileIOUtils.writeFileFromString(filePath, date)
+            }
+            isCreate
+        } catch (e: IOException) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    var simpleDateFormat: SimpleDateFormat? = null
+    private fun getSdf(): SimpleDateFormat? {
+        if (simpleDateFormat == null) {
+            simpleDateFormat = SimpleDateFormat("yyyy_MM_dd HH:mm:ss.SSS ", Locale.getDefault())
+        }
+        return simpleDateFormat
+    }
+
+    private fun getCurrentLogFilePath(d: Date): String {
+        val format = getSdf()?.format(d)
+        val date = format!!.substring(0, 10)
+        val externalFilesDir = applicationContext.getExternalFilesDir(null)
+        // 设置文件路径
+        val fileDir = File(externalFilesDir?.absolutePath, "zztLogW")
+        return fileDir.absolutePath + File.separator + "util_" + date + ".txt"
+    }
+
 
 }

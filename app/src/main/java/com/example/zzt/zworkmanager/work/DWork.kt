@@ -25,7 +25,7 @@ import kotlin.random.Random
 class DWork : Worker {
     val TAG = DWork::class.java.simpleName
     var NOTIFICATION_ID = 9999
-    var maxCount = 10
+    var maxCount = 100
 
     constructor(context: Context, workerParams: WorkerParameters) : super(context, workerParams) {
         Log.v(TAG, "work 工作进度 创建 tags:$tags")
